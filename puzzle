@@ -1,0 +1,251 @@
+import pandas as pd
+from copy import deepcopy
+import numpy as np
+import time 
+
+# # 2D array of Initial state of puzzle 
+# rows, cols = (3, 4)
+# arr = []
+# for i in range(rows):
+#     col = []
+#     for j in range(cols):
+#         num = input("Enter value : ")
+#         col.append(num)
+#     arr.append(col)
+# print(arr)
+
+# # 2D array of Goal State
+
+# g_rows, g_cols = (3, 4)
+# g_arr = []
+# for i in range(g_rows):
+#     g_col = []
+#     for j in range(g_cols):
+#         g_num = input("Enter value : ")
+#         g_col.append(g_num)
+#     g_arr.append(g_col)
+# print(g_arr)
+
+def check_parity(start, end): # to check weather the initial state is convertable or not  ( By perity check )
+
+    start_parity = 0
+    end_parity = 0
+
+    for i in start:
+
+        if i != 0:
+            for x in range(len(start) - start.index(i ) - 1):  # we are searching next numbers after "i" 
+                if(start[start.index( i) + x + 1] < i):         # if next number or coming number lesser that i then add 1 
+                    start_parity += 1
+
+    for i in end:
+        if i != 0:
+            for x in range(len(end) - end.index(i ) - 1):      # same perity check of goal state as we check for initial stage above.
+                if(end[end.index(i) + x + 1] < i):
+                    end_parity += 1
+
+    print(start_parity)
+
+    start_parity = start_parity % 2        
+    end_parity = end_parity % 2   
+
+    if(start_parity == end_parity):  # if both parity are equal it mean then its convertable.
+        return True
+    else: 
+        return False    
+
+
+def print_queue(priority_queue):  #printing the entire queue ! 
+    print("[")
+
+    for item in priority_queue:
+        print(item, end = ",\n")
+    print("\n]")
+    
+
+def swapPositions(board, old_pos, new_pos):  # this is the swap of tile from any possible state ! 
+        temp = deepcopy(board)
+        temp[old_pos], temp[new_pos] = temp[new_pos], temp[old_pos]
+        return temp
+
+def move_right(board):  # for right movement 
+
+    index_from = board.data.index(0)
+    if ((index_from+1) % 4 == 0):
+        return Node(None)
+    else:
+        return Node(swapPositions(board.data, index_from, index_from+1), parent = board)
+
+
+def move_left(board):  # for left movement 
+    index_from = board.data.index(0)
+    if (index_from % 4 == 0):
+        return Node(None)
+    else:
+        return Node(swapPositions(board.data, index_from, index_from-1), parent = board)
+
+
+def move_up(board):   # for  moving up  
+
+    index_from = board.data.index(0)
+    if (index_from % 4 < 1):  # this condition check the possibility of moving up, By simply dividing it by 4 becuse last tiles are on [1, 2, 3, 4]
+        return Node(None)      # not possible 
+    else:
+        return Node(swapPositions(board.data, index_from, index_from-4), parent = board)
+
+def move_down(board):  # for down movement 
+    index_from = board.data.index(0)
+    
+    if (index_from / 4 >= 2): # Check last row tiles 
+        return Node(None)
+    else:
+        return Node(swapPositions(board.data, index_from, index_from+4), parent = board)
+
+
+
+def generate_children(node):     # this generates the childes ( number of childes depend on below function call )
+    node.down = move_down(node)
+    node.up = move_up(node)
+    node.left = move_left(node)
+    node.right = move_right(node)
+
+
+class Node:
+
+    def __init__(self, data, parent = None): #constructor 
+        self.left = None
+        self.right = None
+        self.down = None
+        self.up = None
+        self.data = data
+        self.parent = parent
+    
+    def __str__(self):     
+        ret_str = " __ __ __ __\n|"
+        if self.data is None:
+            ret_str += "  |  |  |  |\n|" * 2
+            ret_str += "  |  |  |  |\n"
+
+        else:    
+            for i in range(3):
+                for j in range(4):
+                    if(self.data[(4*i)+j] == 0):
+                        ret_str += " " + ' |'
+                    elif (self.data[(4*i)+j] != 10 and self.data[(4*i)+j] != 11): 
+                        ret_str += str(self.data[(4*i)+j]) + ' |'
+                    else: 
+                        ret_str += str(self.data[(4*i)+j]) + '|'
+
+                if(i != 2):
+                    ret_str += "\n|"
+        
+        return ret_str
+
+class Tree:
+    def __init__(self, data):
+        self.state = Node(data)
+
+
+class puzzle_game:
+    def __init__(self, st, en):
+        self.start = Tree(st)
+        self.goal = Node(en)
+        self.goal_found = False
+        self.q = []
+        self.final = None
+        self.visited = []
+
+    def add_children_to_queue(self,node):   # Inserting the generated childes (nodes) in the Queue 
+
+
+
+      # These if*conditions (w.r.t up,down,left,right) are keep check so that no node have value and its not repeated in queue 
+        if(node.up.data is not None and node.up.data not in self.visited): 
+            
+            self.q.append(node.up)
+            self.visited.append(node.up)
+
+        if(node.down.data is not None and node.down.data not in self.visited):
+            self.q.append(node.down)
+            self.visited.append(node.down)
+
+        if(node.left.data is not None and node.left.data not in self.visited):
+            self.q.append(node.left)
+            self.visited.append(node.left)
+
+        if(node.right.data is not None and node.right.data not in self.visited):
+            self.q.append(node.right)
+            self.visited.append(node.right)
+
+    def algo(self):  # this function is to check weather Goal state is reached or not possible to reach
+
+        if(check_parity(self.start.state.data, self.goal.data)): # if Parity is true mean can be convertable then go to depth 0 
+            depth = 0
+
+            while(not self.goal_found):   # search goal 
+                print("Depth =", depth)
+                self.q = []
+                self.q.append(self.start.state)
+                self.search(depth)
+
+                if(not self.goal_found):  # if goal state is not found then go to next depth
+                    print("--------Depth Increases-------")
+                depth+=1
+            
+        else:  # and after searching all depths and goal is not founded and 
+            print("The goal can't be reached.")
+
+    def search(self, depth, curr_depth = 0): # searching 
+        if(self.goal_found):
+            return
+
+        curr = self.q[-1]
+        print("Parent = ")
+        print(curr.parent)
+        print("Current Node = ")
+        print(curr, end = "\n\n")
+
+                                    # Goal Test
+        if(curr.data == self.goal.data):
+            self.goal_found = True
+            self.final = curr
+        else:
+            print("Current Queue = ")
+            print_queue(self.q)
+            if(depth == curr_depth):
+                return
+
+            generate_children(curr)
+            self.add_children_to_queue(curr)
+        
+            curr_depth += 1
+            while(self.q[-1] != curr):
+                self.search(depth, curr_depth)
+                self.q.remove(self.q[-1])
+                
+            curr_depth -= 1
+
+            
+            
+stateg = [1,2,0,3,4,5,6,7,8,9,10,11]
+statei = [0,1,2,3,4,5,6,7,8,9,10,11]
+start = [0,9,8,1,4,5,6,7,2,3,10,11]
+goal = [0,1,2,3,4,5,6,7,8,9,10,11]
+some_state = [0,1,3,2,5,4,6,7,8,9,10,11]
+another_state = [1,5,2,3,4,6,10,7,8,9,0,11]
+
+puzzle = puzzle_game(another_state,goal)
+puzzle.algo()
+
+if(puzzle.goal_found):  # final print of Goal State ! 
+    x = puzzle.final
+    path_list = []
+    while(x is not None):
+        path_list.insert(0,x)
+        x = x.parent
+    
+    print("Path = ")
+    print_queue(path_list)
+
+
+
